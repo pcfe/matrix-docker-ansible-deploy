@@ -15,10 +15,16 @@ This will need to be updated once [#156](https://github.com/spantaleev/matrix-do
     * e.g.: `pcfe@t3600 tmp $ scp root@matrix.pcfe.net:/var/tmp/postgres.sql.gz .`
 1. recursively copy `/matrix/synapse/storage/media-store/` off the server, onto a destination of your choice (n.b.: path uses `-`, not the `_` as I was expecting)
     * e.g.: `pcfe@t3600 tmp $ scp root@matrix.pcfe.net:/matrix/synapse/storage/media-store .`
+1. copy Synapse's signing key, which is currently in `/matrix/synapse/config` off the server, onto a destination of your choice
+    * look in the changelog if this moved to 
+1. locate other data directories and also copy them off the server, onto a destination of your choice
+    * e.g.: `[root@matrix ~]# find /matrix/ -name data -type d | grep -v '/postgres/data'`
+
 
 ## Disaster Recovery
 
 1. Install a fresh CentOS 7, with the same hostname
+1. FIXME: server signing key restore
 1. install (but not start) as per [install.md](install.md)
     1. `ansible-playbook --ask-vault-pass --inventory ~/work/git/HouseNet/ansible/inventories/matrix-docker-ansible-deploy-inventory setup.yml --tags=setup-all`
 1. pick a place with enough free space available on your matrix server
@@ -37,3 +43,22 @@ This will need to be updated once [#156](https://github.com/spantaleev/matrix-do
 ## Missing
 
 1. jitsi user was gone, what should have been restored for that?
+
+## Server Signing Key
+
+> tulir
+
+> pcfe: you should add your old public key to the config so new servers wouldn't reject your old events
+
+> https://matrix.org/_matrix/key/v2/query/pcfe.net
+
+> old_signing_keys:
+
+>   ed25519:a_AOzf:
+
+>     key: xDbAgVBElfXM/1sLRHTgm0ipxUcYa2e5nIMiZ9pZQg8
+
+>     expired_ts: 1606594944000
+
+> other than that nothing will break
+https://github.com/matrix-org/synapse/blob/develop/docs/sample_config.yaml#L1430-L1443
