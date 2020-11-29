@@ -78,7 +78,7 @@ Output from that script goes into the used `vars.yml`. Note;
 
 - no leading `-`
 - indent properly after `|`
-- block ends with empty line (hence the inclusion of the start of the next block in the following example)
+- block ends with empty line (hence the inclusion of the starting comment of the next block in the following example)
 
 e.g.:
 
