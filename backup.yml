@@ -1,0 +1,87 @@
+---
+# While being worked on, this is just a playbook,
+# to be turned into a role once it works
+- name: "Back up a Matrix server"
+  #hosts: "{{ target if target is defined else 'matrix_servers' }}"
+  hosts: matrix
+  become: true
+
+  vars:
+    backup_addtl_includes:
+      - /matrix/synapse/config
+
+  tasks:
+    # the archive module can produce `gzip', `bzip2', `lzma' and `zip' compressed files or archives.
+    # but only ensure packages needed to generate a tar.bz2 archive,
+    # obviously, you need to adjust package list if adjusting format in archive task
+    # I want rsync on the box in case I rsynce from home to the matrix server
+    - name: "ensure packages needed for backup are installed"
+      package:
+        name:
+          - tar
+          - bzip2
+          - rsync
+        state: present
+
+    - name: "ensure backup dir exists"
+      file:
+        path: /var/tmp/backup
+        state: directory
+        owner: root
+        group: root
+        mode: 0700
+
+
+    # we need a postgres dump.
+    # do that manually for now as there is work on backup upstream.
+    # c.f. maintenance-postgres.md
+    # maybe better to recycle task upgrade_postgres.yml in the role matrix-postgres ?
+    # watch https://github.com/spantaleev/matrix-docker-ansible-deploy/pull/516
+    # once that is merged, use it's nice oneshot service to get a DB dump
+
+    # we need to collect all the bits and bobs that are not in the postgres database.
+    # see discussion in #matrix-docker-ansible-deploy:devture.com
+    # on 2020-11-27 and following
+    # re-check `[root@matrix ~]# find /matrix/ -name data -type d | grep -v '/postgres/data'`
+    # every time a new set of docker containers are enabled
+    # not having any luck gettiung the find module itself to exclude /matrix/postgres/data
+    - name: find all data directories, attempt to exclude /matrix/postgres/data
+      find:
+        paths: /matrix
+        recurse: yes
+        file_type: directory
+        patterns: 'data'
+      register: datadirs
+
+    - name: from find I got
+      debug:
+        msg: "{{ datadirs.files | map(attribute='path') | list }}"
+
+    - name: rejecting postgres
+      debug:
+        msg: "{{ datadirs.files | rejectattr('path', 'contains' , 'postgres') | map(attribute='path') | list }}"
+
+    - name: adding backup_addtl_includes
+      debug:
+        msg: "{{ datadirs.files | rejectattr('path', 'contains' , 'postgres') | map(attribute='path') | list + backup_addtl_includes }}"
+
+    - name: "create archive, being sure to NOT include postgres but DO include other bits"
+      archive:
+          path: "{{ datadirs.files | rejectattr('path', 'contains' , 'postgres') | map(attribute='path') | list + backup_addtl_includes }}"
+          format: bz2 # not required. choices: bz2;gz;tar;xz;zip. The type of compression to use.,Support for xz was added in version 2.5.
+          dest: /var/tmp/backup/datadirs.tar.bz2
+          unsafe_writes: no # not required. By default this module uses atomic operations to prevent data corruption or inconsistent reads from the target files, but sometimes systems are configured or just broken in ways that prevent this. One example is docker mounted files, which cannot be updated atomically from inside the container and can only be written in an unsafe manner.,This option allows Ansible to fall back to unsafe methods of updating files when atomic operations fail (however, it doesn't force Ansible to perform unsafe writes). IMPORTANT! Unsafe writes are subject to race conditions and can lead to data corruption.
+          mode: 0600 # not required. Mode the file or directory should be. For those used to I(/usr/bin/chmod) remember that modes are actually octal numbers. You must either add a leading zero so that Ansible's YAML parser knows it is an octal number (like C(0644) or C(01777)) or quote it (like C('644') or C('1777')) so Ansible receives a string and can do its own conversion from string into number.  Giving Ansible a number without following one of these rules will end up with a decimal number which will have unexpected results. As of version 1.8, the mode may be specified as a symbolic mode (for example, C(u+rwx) or C(u=rw,g=r,o=r)).
+          owner: root
+          exclude_path: /matrix/postgres/data
+
+
+    - name: "create media_store archive"
+      archive:
+          path: 
+            - /matrix/synapse/storage/media-store
+          format: bz2 # not required. choices: bz2;gz;tar;xz;zip. The type of compression to use.,Support for xz was added in version 2.5.
+          dest: /var/tmp/backup/mediastore.tar.bz2
+          unsafe_writes: no # not required. By default this module uses atomic operations to prevent data corruption or inconsistent reads from the target files, but sometimes systems are configured or just broken in ways that prevent this. One example is docker mounted files, which cannot be updated atomically from inside the container and can only be written in an unsafe manner.,This option allows Ansible to fall back to unsafe methods of updating files when atomic operations fail (however, it doesn't force Ansible to perform unsafe writes). IMPORTANT! Unsafe writes are subject to race conditions and can lead to data corruption.
+          mode: 0600 # not required. Mode the file or directory should be. For those used to I(/usr/bin/chmod) remember that modes are actually octal numbers. You must either add a leading zero so that Ansible's YAML parser knows it is an octal number (like C(0644) or C(01777)) or quote it (like C('644') or C('1777')) so Ansible receives a string and can do its own conversion from string into number.  Giving Ansible a number without following one of these rules will end up with a decimal number which will have unexpected results. As of version 1.8, the mode may be specified as a symbolic mode (for example, C(u+rwx) or C(u=rw,g=r,o=r)).
+          owner: root
