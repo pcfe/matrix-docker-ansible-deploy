@@ -2,6 +2,7 @@
 !/inventory/.gitkeep
 !/inventory/host_vars/.gitkeep
 !/inventory/scripts
+/backup
 /roles/*/files/scratchpad
 .DS_Store
 .python-version
