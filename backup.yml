@@ -15,8 +15,7 @@
     # the archive module can produce `gzip', `bzip2', `lzma' and `zip' compressed files or archives.
     # but only ensure packages needed to generate a tar.bz2 archive,
     # obviously, you need to adjust package list if adjusting format in archive task
-    # maybe add rsync?
-    - name: "ensure packages needed for backup are installed"
+    - name: ensure packages needed for backup are installed
       package:
         name:
           - tar
@@ -33,7 +32,7 @@
 
 
     # we need a postgres dump.
-    # do that manually for now as there is work on backup upstream.
+    # do that manually for now as there is work on backup in progress upstream.
     # docker run --rm --log-driver=none --network=matrix --env-file=/matrix/postgres/env-postgres-psql postgres:13.0-alpine pg_dumpall -h matrix-postgres | gzip -c > /var/tmp/backup/postgres.sql.gz
     # c.f. maintenance-postgres.md
     # maybe better to recycle task upgrade_postgres.yml in the role matrix-postgres ?
@@ -55,15 +54,15 @@
         patterns: 'data'
       register: datadirs
 
-    - name: from find I got
+    - name: from find I got the following
       debug:
         msg: "{{ datadirs.files | map(attribute='path') | list }}"
 
-    - name: rejecting postgres/data
+    - name: rejecting postgres/data gives me
       debug:
         msg: "{{ datadirs.files | rejectattr('path', 'contains' , 'postgres/data') | map(attribute='path') | list }}"
 
-    - name: rejecting postgres/data and adding backup_addtl_includes
+    - name: rejecting postgres/data and adding backup_addtl_includes gives me
       debug:
         msg: "{{ datadirs.files | rejectattr('path', 'contains' , 'postgres/data') | map(attribute='path') | list + backup_addtl_includes }}"
 
@@ -86,6 +85,7 @@
         mode: 0600
         owner: root
 
+    # do ensure you have enough space in ./backup or adjust the dest
     - name: fetch backup archives
       fetch:
         dest: backup
